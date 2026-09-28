@@ -21,8 +21,7 @@ def _orders_in_range(db: Session, start: date | None, end: date | None) -> list[
 def get_summary(db: Session, start: date | None = None, end: date | None = None) -> dict:
     orders = _orders_in_range(db, start, end)
     revenue = _revenue(orders)
-    successful = [order for order in orders if order.status in SUCCESSFUL_STATUSES]
-    order_count = len(successful)
+    order_count = len(orders)
     refunds = len([order for order in orders if order.status == "refunded"])
     return {
         "revenue": round(revenue, 2),

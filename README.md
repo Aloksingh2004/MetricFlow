@@ -7,7 +7,7 @@ MetricFlow is a focused reporting automation SaaS for D2C and e-commerce busines
 - FastAPI backend with OpenAPI documentation at `http://localhost:8000/docs`
 - Streamlit frontend with Login, Dashboard, Data Upload, Reports, and Automation screens
 - CSV/XLS/XLSX support; validation for required fields, types, statuses, missing values, and duplicate order IDs
-- KPI calculations: revenue, completed orders, average order value, refund rate, status breakdown, top products, and period-over-period revenue change
+- KPI calculations: revenue, valid orders, average order value, refund rate, status breakdown, top products, and period-over-period revenue change
 - SQLite for zero-setup local use; PostgreSQL configuration supplied for deployment
 
 ## Quick start
@@ -56,4 +56,3 @@ The API persists schedules and includes an APScheduler worker hook in `backend/a
 ```bash
 PYTHONPATH=backend pytest backend/tests
 ```
-
