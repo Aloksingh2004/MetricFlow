@@ -11,6 +11,32 @@ API_URL = os.getenv("API_URL", "http://localhost:8000")
 
 st.set_page_config(page_title="MetricFlow", page_icon="◈", layout="wide")
 
+st.markdown(
+    """
+    <style>
+    :root { --mf-ink: #172033; --mf-muted: #667085; --mf-blue: #2457d6; --mf-line: #e6eaf0; --mf-surface: #ffffff; }
+    .stApp { background: #f7f8fb; color: var(--mf-ink); }
+    .block-container { max-width: 1440px; padding-top: 2.2rem; padding-bottom: 3rem; }
+    [data-testid="stSidebar"] { background: #ffffff; border-right: 1px solid var(--mf-line); }
+    [data-testid="stSidebar"] .block-container { padding: 2rem 1.1rem; }
+    [data-testid="stMetric"] { background: var(--mf-surface); border: 1px solid var(--mf-line); border-radius: 12px; padding: 1rem 1.15rem; box-shadow: 0 2px 8px rgba(23,32,51,.03); }
+    [data-testid="stMetricLabel"] { color: var(--mf-muted); font-weight: 600; }
+    [data-testid="stMetricValue"] { color: var(--mf-ink); font-size: 1.65rem; }
+    .mf-kicker { color: var(--mf-blue); font-size: .75rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; margin-bottom: .35rem; }
+    .mf-title { color: var(--mf-ink); font-size: 2.15rem; font-weight: 750; letter-spacing: -.03em; margin: 0; }
+    .mf-subtitle { color: var(--mf-muted); font-size: 1rem; margin: .35rem 0 1.6rem; }
+    .mf-card { background: var(--mf-surface); border: 1px solid var(--mf-line); border-radius: 12px; padding: 1.25rem; }
+    .mf-card h3 { color: var(--mf-ink); font-size: 1rem; margin: 0 0 .35rem; }
+    .mf-card p { color: var(--mf-muted); font-size: .9rem; margin: 0; }
+    .mf-step { color: var(--mf-muted); font-size: .82rem; text-align: center; }
+    .mf-step strong { display: block; color: var(--mf-ink); font-size: .9rem; margin-top: .25rem; }
+    div.stButton > button[kind="primary"] { background: var(--mf-blue); border-color: var(--mf-blue); border-radius: 8px; font-weight: 650; }
+    div.stDownloadButton > button { border-radius: 8px; font-weight: 650; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 
 def api(method: str, path: str, **kwargs):
     headers = dict(kwargs.pop("headers", {}))
@@ -34,27 +60,35 @@ def money(value: float) -> str:
     return f"₹{value:,.2f}"
 
 
+def page_header(kicker: str, title: str, subtitle: str):
+    st.markdown(f'<div class="mf-kicker">{kicker}</div><h1 class="mf-title">{title}</h1><p class="mf-subtitle">{subtitle}</p>', unsafe_allow_html=True)
+
+
 def date_params():
-    selection = st.sidebar.date_input(
-        "Reporting period",
-        (date.today() - timedelta(days=29), date.today()),
-        max_value=date.today(),
-    )
-    if len(selection) != 2:
-        st.sidebar.info("Choose a start and end date.")
-        return {}
-    return {"start": selection[0].isoformat(), "end": selection[1].isoformat()}
+    today = date.today()
+    preset = st.sidebar.selectbox("Date range", ["Last 7 days", "Last 30 days", "Last 90 days", "Custom range"])
+    if preset == "Custom range":
+        selection = st.sidebar.date_input("Reporting period", (today - timedelta(days=29), today), max_value=today)
+        if not isinstance(selection, tuple) or len(selection) != 2:
+            st.sidebar.info("Choose both a start and end date.")
+            return {}
+        start, end = selection
+    else:
+        days = {"Last 7 days": 6, "Last 30 days": 29, "Last 90 days": 89}[preset]
+        start, end = today - timedelta(days=days), today
+    st.sidebar.caption(f"{start.strftime('%d %b %Y')} – {end.strftime('%d %b %Y')}")
+    return {"start": start.isoformat(), "end": end.isoformat()}
 
 
 def login_page():
-    left, center, right = st.columns([1, 1.2, 1])
+    st.markdown('<div class="mf-kicker">Sales operations workspace</div>', unsafe_allow_html=True)
+    left, center, right = st.columns([1, 1.05, 1])
     with center:
-        st.title("MetricFlow")
-        st.caption("Sales reporting, without spreadsheet cleanup.")
+        st.markdown('<h1 class="mf-title">Welcome to MetricFlow</h1><p class="mf-subtitle">A clear view of your sales, every week.</p>', unsafe_allow_html=True)
         with st.form("login"):
-            email = st.text_input("Email", value="demo@metricflow.app")
+            email = st.text_input("Work email", value="demo@metricflow.app", placeholder="you@company.com")
             password = st.text_input("Password", value="demo123", type="password")
-            submitted = st.form_submit_button("Sign in", use_container_width=True)
+            submitted = st.form_submit_button("Sign in to workspace", type="primary", use_container_width=True)
         if submitted:
             response = api("POST", "/auth/login", json={"email": email, "password": password})
             if response:
@@ -62,12 +96,11 @@ def login_page():
                 st.session_state.authenticated = True
                 st.session_state.user_email = response.json()["user"]["email"]
                 st.rerun()
-        st.caption("Demo: `demo@metricflow.app` / `demo123`")
+        st.info("Demo workspace: demo@metricflow.app · demo123")
 
 
 def dashboard_page():
-    st.title("Dashboard")
-    st.caption("Your e-commerce performance at a glance.")
+    page_header("Overview", "Sales dashboard", "Your e-commerce performance at a glance.")
     params = date_params()
     if not params:
         return
@@ -77,8 +110,8 @@ def dashboard_page():
     summary = response.json()
     cards = st.columns(4)
     cards[0].metric("Revenue", money(summary["revenue"]), f"{summary['week_over_week_change']:+.1f}% vs previous period")
-    cards[1].metric("Orders", f"{summary['orders']:,}")
-    cards[2].metric("Average order value", money(summary["average_order_value"]))
+    cards[1].metric("Orders", f"{summary['orders']:,}", "All valid orders")
+    cards[2].metric("Average order value", money(summary["average_order_value"]), "Revenue ÷ orders")
     cards[3].metric("Refund rate", f"{summary['refund_rate']:.1f}%", f"{summary['refunded_orders']} refunded")
 
     trend_response = api("GET", "/dashboard/trends", params=params)
@@ -91,14 +124,18 @@ def dashboard_page():
         if trend.empty:
             st.info("Import orders to see your revenue trend.")
         else:
-            st.plotly_chart(px.line(trend, x="date", y="revenue", markers=True), use_container_width=True)
+            chart = px.line(trend, x="date", y="revenue", markers=True, labels={"date": "Date", "revenue": "Revenue"})
+            chart.update_layout(template="plotly_white", margin=dict(l=0, r=0, t=12, b=0), hovermode="x unified")
+            st.plotly_chart(chart, use_container_width=True)
     with second:
         st.subheader("Order status")
         statuses = pd.DataFrame(status_response.json() if status_response else [])
         if statuses.empty:
             st.info("No orders in this period.")
         else:
-            st.plotly_chart(px.pie(statuses, names="status", values="count", hole=.55), use_container_width=True)
+            chart = px.pie(statuses, names="status", values="count", hole=.55)
+            chart.update_layout(template="plotly_white", margin=dict(l=0, r=0, t=12, b=0), legend_title_text="Status")
+            st.plotly_chart(chart, use_container_width=True)
     st.subheader("Top products")
     products = pd.DataFrame(product_response.json() if product_response else [])
     if products.empty:
@@ -108,60 +145,86 @@ def dashboard_page():
 
 
 def upload_page():
-    st.title("Import sales data")
-    st.caption("Upload a CSV or Excel export. Required fields: order_id, order_date, product_name, quantity, unit_price, status.")
+    page_header("Data workspace", "Import sales data", "Turn your export into a clean, decision-ready dataset in three steps.")
+    steps = st.columns(3)
+    for column, number, label, detail in zip(steps, ("1", "2", "3"), ("Upload", "Review", "Import"), ("Choose a CSV or Excel file", "Check validation results", "Refresh your dashboard")):
+        with column:
+            st.markdown(f'<div class="mf-step"><span>{number}</span><strong>{label}</strong>{detail}</div>', unsafe_allow_html=True)
+    st.divider()
+    st.markdown("#### Choose your sales export")
+    st.caption("Required columns: order_id, order_date, product_name, quantity, unit_price, status")
     uploaded_file = st.file_uploader("Drop your sales export here", type=["csv", "xlsx", "xls"])
     if not uploaded_file:
+        st.info("No file selected yet. CSV, XLS, and XLSX files up to 10 MB are supported.")
         return
+    if st.session_state.get("uploaded_filename") != uploaded_file.name:
+        st.session_state.pop("validation", None)
+        st.session_state.uploaded_filename = uploaded_file.name
     st.success(f"Ready to validate: {uploaded_file.name}")
     try:
         preview = pd.read_csv(uploaded_file) if uploaded_file.name.lower().endswith(".csv") else pd.read_excel(uploaded_file)
-        st.dataframe(preview.head(10), use_container_width=True, hide_index=True)
+        st.caption(f"Previewing the first 10 rows · {len(preview):,} total rows")
+        with st.expander("Preview rows", expanded=True):
+            st.dataframe(preview.head(10), use_container_width=True, hide_index=True)
         uploaded_file.seek(0)
     except Exception as error:
         st.error(f"Could not preview this file: {error}")
         return
     if st.button("Validate data", type="primary"):
-        response = api("POST", "/uploads", files={"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)})
-        if response:
-            st.session_state.upload_id = response.json()["id"]
-            validation = api("POST", f"/uploads/{st.session_state.upload_id}/validate")
-            if validation:
-                st.session_state.validation = validation.json()
+        with st.spinner("Checking columns, types, duplicates, and statuses…"):
+            response = api("POST", "/uploads", files={"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)})
+            if response:
+                st.session_state.upload_id = response.json()["id"]
+                validation = api("POST", f"/uploads/{st.session_state.upload_id}/validate")
+                if validation:
+                    st.session_state.validation = validation.json()
     validation = st.session_state.get("validation")
     if validation:
+        st.divider()
+        st.markdown("#### Validation results")
+        result_cards = st.columns(2)
+        result_cards[0].metric("Valid rows", f"{validation['valid_rows']:,}", f"of {validation['row_count']:,} rows")
+        result_cards[1].metric("Status", "Ready to import" if validation["valid"] else "Needs attention")
         if validation["errors"]:
-            for error in validation["errors"]:
-                st.error(error)
+            with st.expander(f"Review {len(validation['errors'])} issue(s)", expanded=True):
+                for error in validation["errors"]:
+                    st.error(error)
         for warning in validation["warnings"]:
             st.warning(warning)
         st.caption(f"{validation['valid_rows']} of {validation['row_count']} records are valid.")
-        if validation["valid"] and st.button("Import data"):
-            response = api("POST", f"/uploads/{st.session_state.upload_id}/import")
-            if response:
-                st.success(f"Imported {response.json()['imported_rows']} new orders. Your dashboard is refreshed.")
+        if validation["valid"]:
+            if st.button("Import data and refresh dashboard", type="primary"):
+                with st.spinner("Importing clean records…"):
+                    response = api("POST", f"/uploads/{st.session_state.upload_id}/import")
+                if response:
+                    st.success(f"Imported {response.json()['imported_rows']} new orders. Your dashboard is refreshed.")
 
 
 def reports_page():
-    st.title("Weekly reports")
-    st.caption("Generate a ready-to-share Excel report with KPIs, revenue trend, and top products.")
+    page_header("Reporting", "Weekly reports", "Create a ready-to-share Excel report for any date range.")
+    st.markdown('<div class="mf-card"><h3>What is included</h3><p>Summary KPIs · daily revenue trend · top products by revenue</p></div>', unsafe_allow_html=True)
+    st.write("")
     start, end = st.date_input("Report period", (date.today() - timedelta(days=6), date.today()), max_value=date.today())
-    if st.button("Generate weekly report", type="primary"):
-        response = api("POST", "/reports/generate", params={"start": start.isoformat(), "end": end.isoformat()})
+    if st.button("Generate Excel report", type="primary"):
+        with st.spinner("Preparing your report…"):
+            response = api("POST", "/reports/generate", params={"start": start.isoformat(), "end": end.isoformat()})
         if response:
             report = response.json()
             st.session_state.report = report
             st.success("Your report is ready.")
     report = st.session_state.get("report")
     if report:
+        st.success(f"Report ready · {report['filename']}")
         download = api("GET", f"/reports/{report['id']}")
         if download:
             st.download_button("Download Excel report", download.content, report["filename"], "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 def automation_page():
-    st.title("Automation")
-    st.caption("Save a recurring schedule now. The worker hook is ready for deployment when you enable report delivery.")
+    page_header("Workflow", "Automation", "Set a recurring reporting rhythm so your team always knows when to check in.")
+    st.markdown('<div class="mf-card"><h3>How it works</h3><p>MetricFlow saves your schedule and prepares the report workflow. Email delivery can be connected when you are ready to turn it on.</p></div>', unsafe_allow_html=True)
+    st.write("")
+    st.markdown("#### New schedule")
     with st.form("schedule"):
         report_type = st.selectbox("Report type", ["weekly"])
         frequency = st.selectbox("Frequency", ["weekly", "monthly"])
@@ -170,11 +233,13 @@ def automation_page():
     if submitted:
         response = api("POST", "/schedules", json={"report_type": report_type, "frequency": frequency, "delivery_time": delivery_time})
         if response:
-            st.success("Schedule saved.")
+            st.success("Schedule saved. Your recurring workflow is ready.")
     response = api("GET", "/schedules")
     if response and response.json():
         st.subheader("Saved schedules")
         st.dataframe(pd.DataFrame(response.json()), use_container_width=True, hide_index=True)
+    elif response:
+        st.info("No schedules yet. Add your first weekly or monthly report above.")
 
 
 if "authenticated" not in st.session_state:
@@ -184,9 +249,13 @@ if not st.session_state.authenticated:
     login_page()
 else:
     with st.sidebar:
-        st.title("◈ MetricFlow")
-        page = st.radio("Navigate", ["Dashboard", "Data Upload", "Reports", "Automation"])
-        st.caption(st.session_state.user_email)
+        st.markdown('<div class="mf-title" style="font-size:1.3rem;">◈ MetricFlow</div><p style="color:#667085; font-size:.8rem;">Sales operations workspace</p>', unsafe_allow_html=True)
+        st.divider()
+        page = st.radio("Workspace", ["▦  Dashboard", "⇧  Data Upload", "▤  Reports", "◷  Automation"], label_visibility="visible")
+        page = page.split("  ", 1)[1]
+        st.divider()
+        st.caption("SIGNED IN AS")
+        st.markdown(f"**{st.session_state.user_email}**")
         if st.button("Sign out"):
             st.session_state.authenticated = False
             st.session_state.pop("access_token", None)
