@@ -13,12 +13,19 @@ st.set_page_config(page_title="MetricFlow", page_icon="◈", layout="wide")
 
 
 def api(method: str, path: str, **kwargs):
+    headers = dict(kwargs.pop("headers", {}))
+    access_token = st.session_state.get("access_token")
+    if access_token:
+        headers["Authorization"] = f"Bearer {access_token}"
     try:
-        response = requests.request(method, f"{API_URL}{path}", timeout=30, **kwargs)
+        response = requests.request(method, f"{API_URL}{path}", timeout=30, headers=headers, **kwargs)
         response.raise_for_status()
         return response
     except requests.RequestException as error:
         detail = getattr(error.response, "text", "") if getattr(error, "response", None) else ""
+        if getattr(error, "response", None) is not None and error.response.status_code == 401:
+            st.session_state.authenticated = False
+            st.session_state.pop("access_token", None)
         st.error(f"Could not reach MetricFlow API. {detail or error}")
         return None
 
@@ -51,8 +58,9 @@ def login_page():
         if submitted:
             response = api("POST", "/auth/login", json={"email": email, "password": password})
             if response:
+                st.session_state.access_token = response.json()["access_token"]
                 st.session_state.authenticated = True
-                st.session_state.user_email = email
+                st.session_state.user_email = response.json()["user"]["email"]
                 st.rerun()
         st.caption("Demo: `demo@metricflow.app` / `demo123`")
 
@@ -181,5 +189,6 @@ else:
         st.caption(st.session_state.user_email)
         if st.button("Sign out"):
             st.session_state.authenticated = False
+            st.session_state.pop("access_token", None)
             st.rerun()
     {"Dashboard": dashboard_page, "Data Upload": upload_page, "Reports": reports_page, "Automation": automation_page}[page]()

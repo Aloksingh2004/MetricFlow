@@ -5,15 +5,20 @@ from app.models import Order
 from app.services.validation import clean_dataframe, load_dataframe
 
 
-def import_orders(db: Session, file_path: str, upload_id: str) -> int:
+def import_orders(db: Session, file_path: str, upload_id: str, user_id: str) -> int:
     frame = clean_dataframe(load_dataframe(file_path))
-    existing_ids = set(db.scalars(select(Order.order_id).where(Order.order_id.in_(frame["order_id"].tolist()))))
+    existing_ids = set(
+        db.scalars(
+            select(Order.order_id).where(Order.user_id == user_id, Order.order_id.in_(frame["order_id"].tolist()))
+        )
+    )
     imported = 0
     for record in frame.to_dict(orient="records"):
         if record["order_id"] in existing_ids:
             continue
         db.add(
             Order(
+                user_id=user_id,
                 order_id=record["order_id"],
                 order_date=record["order_date"].to_pydatetime(),
                 customer_id=_string_or_none(record.get("customer_id")),
@@ -33,4 +38,3 @@ def import_orders(db: Session, file_path: str, upload_id: str) -> int:
 
 def _string_or_none(value):
     return None if value is None or str(value).lower() == "nan" else str(value).strip()
-

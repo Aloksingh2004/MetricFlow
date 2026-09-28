@@ -6,6 +6,7 @@ from app.services import metrics
 
 def _order(order_id: str, status: str, quantity: int, unit_price: float) -> Order:
     return Order(
+        user_id="user-1",
         order_id=order_id,
         order_date=datetime(2026, 9, 10),
         product_name="Tee",
@@ -23,7 +24,7 @@ def test_summary_counts_all_valid_orders_but_revenue_only_completed(monkeypatch)
     ]
     monkeypatch.setattr(metrics, "_orders_in_range", lambda *_: orders)
 
-    summary = metrics.get_summary(object())
+    summary = metrics.get_summary(object(), "user-1")
 
     assert summary["revenue"] == 200.0
     assert summary["orders"] == 3
