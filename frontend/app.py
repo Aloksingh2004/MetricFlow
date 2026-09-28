@@ -16,22 +16,31 @@ st.markdown(
     <style>
     :root { --mf-ink: #172033; --mf-muted: #667085; --mf-blue: #2457d6; --mf-line: #e6eaf0; --mf-surface: #ffffff; }
     .stApp { background: #f7f8fb; color: var(--mf-ink); }
-    .block-container { max-width: 1440px; padding-top: 2.2rem; padding-bottom: 3rem; }
+    .block-container { max-width: 1440px; padding-top: 2.2rem; padding-bottom: 3rem; animation: mf-fade-in .4s ease both; }
     [data-testid="stSidebar"] { background: #ffffff; border-right: 1px solid var(--mf-line); }
     [data-testid="stSidebar"] .block-container { padding: 2rem 1.1rem; }
     [data-testid="stMetric"] { background: var(--mf-surface); border: 1px solid var(--mf-line); border-radius: 12px; padding: 1rem 1.15rem; box-shadow: 0 2px 8px rgba(23,32,51,.03); }
     [data-testid="stMetricLabel"] { color: var(--mf-muted); font-weight: 600; }
     [data-testid="stMetricValue"] { color: var(--mf-ink); font-size: 1.65rem; }
     .mf-kicker { color: var(--mf-blue); font-size: .75rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; margin-bottom: .35rem; }
-    .mf-title { color: var(--mf-ink); font-size: 2.15rem; font-weight: 750; letter-spacing: -.03em; margin: 0; }
-    .mf-subtitle { color: var(--mf-muted); font-size: 1rem; margin: .35rem 0 1.6rem; }
-    .mf-card { background: var(--mf-surface); border: 1px solid var(--mf-line); border-radius: 12px; padding: 1.25rem; }
+    .mf-title { color: var(--mf-ink); font-size: 2.15rem; font-weight: 750; letter-spacing: -.03em; margin: 0; animation: mf-fade-up .55s cubic-bezier(.2,.8,.2,1) both; }
+    .mf-subtitle { color: var(--mf-muted); font-size: 1rem; margin: .35rem 0 1.6rem; animation: mf-fade-up .55s .08s cubic-bezier(.2,.8,.2,1) both; }
+    .mf-card { background: var(--mf-surface); border: 1px solid var(--mf-line); border-radius: 12px; padding: 1.25rem; animation: mf-fade-up .5s .12s cubic-bezier(.2,.8,.2,1) both; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+    .mf-card:hover { border-color: #c9d5ef; box-shadow: 0 10px 24px rgba(23,32,51,.07); transform: translateY(-2px); }
     .mf-card h3 { color: var(--mf-ink); font-size: 1rem; margin: 0 0 .35rem; }
     .mf-card p { color: var(--mf-muted); font-size: .9rem; margin: 0; }
-    .mf-step { color: var(--mf-muted); font-size: .82rem; text-align: center; }
+    .mf-step { color: var(--mf-muted); font-size: .82rem; text-align: center; animation: mf-fade-up .5s cubic-bezier(.2,.8,.2,1) both; }
+    .mf-step span { display: inline-flex; align-items: center; justify-content: center; width: 1.55rem; height: 1.55rem; border: 1px solid #c9d5ef; border-radius: 50%; color: var(--mf-blue); font-weight: 800; background: #f5f8ff; }
     .mf-step strong { display: block; color: var(--mf-ink); font-size: .9rem; margin-top: .25rem; }
-    div.stButton > button[kind="primary"] { background: var(--mf-blue); border-color: var(--mf-blue); border-radius: 8px; font-weight: 650; }
-    div.stDownloadButton > button { border-radius: 8px; font-weight: 650; }
+    div.stButton > button, div.stDownloadButton > button { border-radius: 8px; font-weight: 650; transition: transform .16s ease, box-shadow .16s ease, background .16s ease; }
+    div.stButton > button:hover, div.stDownloadButton > button:hover { box-shadow: 0 6px 16px rgba(36,87,214,.16); transform: translateY(-1px); }
+    div.stButton > button[kind="primary"] { background: var(--mf-blue); border-color: var(--mf-blue); }
+    [data-testid="stMetric"] { animation: mf-fade-up .5s cubic-bezier(.2,.8,.2,1) both; transition: transform .18s ease, box-shadow .18s ease; }
+    [data-testid="stMetric"]:hover { transform: translateY(-3px); box-shadow: 0 10px 22px rgba(23,32,51,.08); }
+    [data-testid="stPlotlyChart"], [data-testid="stDataFrame"] { animation: mf-fade-in .7s .1s ease both; }
+    @keyframes mf-fade-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes mf-fade-in { from { opacity: 0; } to { opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
     </style>
     """,
     unsafe_allow_html=True,
@@ -147,9 +156,9 @@ def dashboard_page():
 def upload_page():
     page_header("Data workspace", "Import sales data", "Turn your export into a clean, decision-ready dataset in three steps.")
     steps = st.columns(3)
-    for column, number, label, detail in zip(steps, ("1", "2", "3"), ("Upload", "Review", "Import"), ("Choose a CSV or Excel file", "Check validation results", "Refresh your dashboard")):
+    for index, (column, number, label, detail) in enumerate(zip(steps, ("1", "2", "3"), ("Upload", "Review", "Import"), ("Choose a CSV or Excel file", "Check validation results", "Refresh your dashboard"))):
         with column:
-            st.markdown(f'<div class="mf-step"><span>{number}</span><strong>{label}</strong>{detail}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="mf-step" style="animation-delay:{index * 90}ms"><span>{number}</span><strong>{label}</strong>{detail}</div>', unsafe_allow_html=True)
     st.divider()
     st.markdown("#### Choose your sales export")
     st.caption("Required columns: order_id, order_date, product_name, quantity, unit_price, status")
